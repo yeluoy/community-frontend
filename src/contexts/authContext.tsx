@@ -1,34 +1,45 @@
-import { createContext, useState, useEffect, ReactNode } from "react";
+// 文件: src/contexts/authContext.tsx
 
+import { createContext, useState, useEffect, ReactNode } from "react";
 import { User } from '@/types';
+import { 
+  login as loginApi, 
+  logout as logoutApi, 
+  getCurrentUser, 
+  register as registerApi,
+  sendVerificationCode as sendVerificationCodeApi // 【导入】
+} from '@/mocks/authService';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  register: (username: string, email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  // 【修改】更新 register 函数签名
+  register: (username: string, email: string, password: string, verificationCode: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
+  // 【新增】添加发送验证码函数
+  sendVerificationCode: (email: string) => Promise<{ success: boolean; message: string }>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   user: null,
   login: async () => ({ success: false }),
+  // 【修改】更新默认实现
   register: async () => ({ success: false }),
   logout: () => {},
+  // 【新增】添加默认实现
+  sendVerificationCode: async () => ({ success: false, message: '发送失败' }),
 });
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
-import { login as loginApi, logout as logoutApi, getCurrentUser, register as registerApi } from '@/mocks/auth';
-
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
   
-  // 初始化时检查用户是否已登录
   useEffect(() => {
     const currentUser = getCurrentUser();
     if (currentUser) {
@@ -46,8 +57,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return result;
   };
   
-  const register = async (username: string, email: string, password: string) => {
-    return await registerApi(username, email, password);
+  // 【修改】更新 register 函数实现
+  const register = async (username: string, email: string, password: string, verificationCode: string) => {
+    return await registerApi(username, email, password, verificationCode);
   };
   
   const logout = () => {
@@ -56,8 +68,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(null);
   };
   
+  // 【新增】实现发送验证码函数
+  const sendVerificationCode = async (email: string) => {
+      return await sendVerificationCodeApi(email);
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    // 【修改】将新函数添加到 Provider 的 value 中
+    <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout, sendVerificationCode }}>
       {children}
     </AuthContext.Provider>
   );

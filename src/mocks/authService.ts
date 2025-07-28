@@ -1,9 +1,12 @@
+// 文件: src/mocks/auth.ts
+
 // 模拟用户数据
 import { User } from '@/types';
 
 // 存储在localStorage中的用户数据键名
 const USERS_STORAGE_KEY = 'techforum_users';
 const CURRENT_USER_KEY = 'techforum_current_user';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // 初始化默认用户（如果不存在）
 const initDefaultUsers = () => {
@@ -13,7 +16,7 @@ const initDefaultUsers = () => {
         id: '1',
         username: '技术达人',
         email: 'user@example.com',
-        password: 'password123', // 模拟存储的密码，实际应用中应该是加密存储的
+        password: 'password123', // 模拟存储的密码
         avatar: 'https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=User+avatar+1&sign=7cc5e5e9d261bde8ce5fccdb28c709aa',
         joinDate: '2023-01-15',
         postCount: 42
@@ -23,29 +26,22 @@ const initDefaultUsers = () => {
   }
 };
 
-// 模拟登录API
+// 模拟登录API (保持不变)
 export const login = async (email: string, password: string): Promise<{ 
   success: boolean; 
   user?: User; 
   message?: string 
 }> => {
-  // 初始化默认用户数据
   initDefaultUsers();
-  
-  // 模拟网络延迟
   await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // 获取存储的用户数据
   const usersString = localStorage.getItem(USERS_STORAGE_KEY);
   if (!usersString) {
     return { success: false, message: '用户数据不存在' };
   }
-  
   const users: User[] & { email?: string; password?: string }[] = JSON.parse(usersString);
   const user = users.find(u => u.email === email && u.password === password);
   
   if (user) {
-    // 存储当前登录用户（不包含密码）
     const { password, ...userWithoutPassword } = user;
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userWithoutPassword));
     return { success: true, user: userWithoutPassword as User };
@@ -54,59 +50,53 @@ export const login = async (email: string, password: string): Promise<{
   }
 };
 
-// 模拟注册API
-export const register = async (username: string, email: string, password: string): Promise<{ 
-  success: boolean; 
-  message?: string 
-}> => {
-  // 初始化默认用户数据
-  initDefaultUsers();
-  
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // 获取存储的用户数据
-  const usersString = localStorage.getItem(USERS_STORAGE_KEY);
-  if (!usersString) {
-    return { success: false, message: '用户数据不存在' };
-  }
-  
-  const users: User[] & { email?: string; password?: string }[] = JSON.parse(usersString);
-  
-  // 检查邮箱是否已被注册
-  if (users.some(u => u.email === email)) {
-    return { success: false, message: '该邮箱已被注册' };
-  }
-  
-  // 检查用户名是否已被使用
-  if (users.some(u => u.username === username)) {
-    return { success: false, message: '该用户名已被使用' };
-  }
-  
-  // 创建新用户
-  const newUser = {
-    id: Date.now().toString(),
-    username,
-    email,
-    password, // 实际应用中应该存储加密后的密码
-    avatar: `https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=User+avatar+%24%7BDate.now%28%29%7D&sign=7527d3023311ab796bb86db9f8ba3976 10)}`,
-    joinDate: new Date().toISOString().split('T')[0],
-    postCount: 0
-  };
-  
-  // 保存新用户
-  users.push(newUser);
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-  
-  return { success: true, message: '注册成功，请登录' };
+/**
+ * 发送邮箱验证码
+ * @param email 邮箱地址
+ * @returns Promise
+ */
+export const sendVerificationCode = async (email: string): Promise<{ success: boolean; message: string }> => {
+  const response = await fetch(`${API_BASE_URL}/auth/send-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+  return response.json();
 };
 
-// 模拟登出
+
+/**
+ * 用户注册
+ * @param username 用户名
+ * @param email 邮箱
+ * @param password 密码
+ * @param verificationCode 邮箱验证码
+ * @returns Promise
+ */
+export const register = async (
+  username: string, 
+  email: string, 
+  password: string,
+  verificationCode: string
+): Promise<{ success: boolean; message?: string }> => {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ username, email, password, verificationCode }),
+  });
+  return response.json();
+};
+
+// 模拟登出 (保持不变)
 export const logout = () => {
   localStorage.removeItem(CURRENT_USER_KEY);
 };
 
-// 获取当前登录用户
+// 获取当前登录用户 (保持不变)
 export const getCurrentUser = (): User | null => {
   const userString = localStorage.getItem(CURRENT_USER_KEY);
   if (!userString) return null;
