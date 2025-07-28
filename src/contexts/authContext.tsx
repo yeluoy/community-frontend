@@ -16,10 +16,26 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // 这是一个关键的辅助函数，用于从localStorage获取token
+// 【关键修复】让 getTokensFromStorage 函数更健壮
 const getTokensFromStorage = () => {
     const accessToken = localStorage.getItem('accessToken');
     const refreshToken = localStorage.getItem('refreshToken');
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    
+    // 从 localStorage 获取 user 字符串
+    const userString = localStorage.getItem('user');
+    let user = null;
+
+    // 只有在 userString 存在且不是 "undefined" 时才解析
+    if (userString && userString !== 'undefined') {
+        try {
+            user = JSON.parse(userString);
+        } catch (e) {
+            console.error("解析本地存储的user信息失败", e);
+            // 解析失败时，清除脏数据
+            localStorage.removeItem('user');
+        }
+    }
+    
     return { accessToken, refreshToken, user };
 };
 
@@ -58,16 +74,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const result = await loginApi(email, password);
       if (result.success) {
-        const { accessToken, refreshToken, user: loggedInUser } = result.data;
+        //const { accessToken, refreshToken, user: loggedInUser } = result.data;
+        // 【关键修复】根据后端返回的真实字段名进行解构
+        const { token: accessToken, refreshToken, userInfo: loggedInUser } = result.data;
         
-        // 将token和用户信息存入localStorage
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
-        localStorage.setItem('user', JSON.stringify(loggedInUser));
+        
+        // 确保我们拿到了有效数据再进行存储
+        if(accessToken && refreshToken && loggedInUser){
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('refreshToken', refreshToken);
+            localStorage.setItem('user', JSON.stringify(loggedInUser));
 
-        // 更新React状态
-        setUser(loggedInUser);
-        setIsAuthenticated(true);
+            setUser(loggedInUser);
+            setIsAuthenticated(true);
+        } else {
+             // 如果后端成功响应但数据不完整，也视为登录失败
+             return { success: false, message: "登录响应数据不完整" };
+        }
       }
       return result; // 将完整结果返回给UI层处理
     } catch (error) {
@@ -79,13 +102,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // 【登出函数】
   const logout = () => {
-    const { refreshToken } = getTokensFromStorage();
-    if(refreshToken) {
-        // 通知后端登出（可选）
-        logoutApi(refreshToken).catch(err => console.error("登出API调用失败", err));
-    }
+    // 通知后端登出
+    logoutApi().catch(err => console.error("登出API调用失败", err));
     
-    // 从localStorage清除所有认证信息
+    // 清除本地存储
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');

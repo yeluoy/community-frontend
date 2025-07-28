@@ -1,3 +1,5 @@
+// 文件: src/components/Navbar.tsx
+
 import { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '@/contexts/authContext.tsx';
@@ -13,14 +15,20 @@ const sections = [
 ];
 
 export default function Navbar() {
-  const { isAuthenticated, user, logout } = useContext(AuthContext);
+  const auth = useContext(AuthContext);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // 【重要】检查AuthContext是否存在，防止因ContextProvider未包裹导致的错误
+  if (!auth) {
+    // 在开发环境中，这会帮助你快速定位到问题
+    throw new Error("Navbar must be used within an AuthProvider");
+  }
+  const { isAuthenticated, user, logout } = auth;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // 实际应用中这里会跳转到搜索结果页
       console.log('Searching for:', searchQuery);
     }
   };
@@ -76,63 +84,66 @@ export default function Navbar() {
 
             {/* 用户操作按钮 */}
             <div className="ml-4 flex items-center">
-               {isAuthenticated ? (
-                 // 已登录状态 - 显示头像和下拉菜单
-                 <div className="relative group">
-                   <button
-                     type="button"
-                     className="flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                     id="user-menu-button"
-                     aria-expanded="false"
-                     aria-haspopup="true"
-                   >
-                     <img
-                       className="h-8 w-8 rounded-full object-cover border-2 border-transparent hover:border-blue-500 transition-all"
-                       src={user?.avatar || "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=User+avatar&sign=f1f81b57b203e2aa336aa3ec3f6e3f7f"}
-                       alt={user?.username || "User avatar"}
-                     />
-                   </button>
-                   
-                   {/* 下拉菜单 */}
-                   <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 z-10 border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right scale-95 group-hover:scale-100">
-                     <Link
-                       to={`/u/${user?.id}`}
-                       className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                     >
-                       <i className="fa-solid fa-user mr-2"></i>个人主页
-                     </Link>
-                     <Link
-                       to="/settings"
-                       className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                     >
-                       <i className="fa-solid fa-cog mr-2"></i>设置
-                     </Link>
-                     <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-                     <button
-                       onClick={logout}
-                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                     >
-                       <i className="fa-solid fa-sign-out-alt mr-2"></i>退出登录
-                     </button>
-                   </div>
-                 </div>  
-               ) : (
-                 // 未登录状态 - 显示登录和注册按钮
-                 <div className="hidden md:flex items-center space-x-3">
-                   <Link
-                     to="/login"
-                     className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
-                   >
-                     登录
-                   </Link>
-                   <Link
-                     to="/register"
-                     className="px-3 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-                   >
-                     注册
-                   </Link>
-                 </div>
-               )}
+                {isAuthenticated && user ? ( // 【修改】这里增加了对 user 对象的检查，更安全
+                  // 已登录状态 - 显示头像和下拉菜单
+                  <div className="relative group">
+                    <button
+                      type="button"
+                      className="flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      id="user-menu-button"
+                      aria-expanded="false"
+                      aria-haspopup="true"
+                    >
+                      <img
+                        className="h-8 w-8 rounded-full object-cover border-2 border-transparent hover:border-blue-500 transition-all"
+                        src={user.avatar || `https://ui-avatars.com/api/?name=${user.username}`}
+                        alt={user.username || "User avatar"}
+                      />
+                    </button>
+                    
+                    {/* 下拉菜单 */}
+                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 z-10 border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right scale-95 group-hover:scale-100">
+                      
+                      {/* --- 唯一的、核心的修改在这里！ --- */}
+                      <Link
+                        to={`/profile/${user.uid}`} // 使用 user.uid 动态生成链接
+                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <i className="fa-solid fa-user mr-2"></i>个人主页
+                      </Link>
+                      
+                      <Link
+                        to="/settings"
+                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <i className="fa-solid fa-cog mr-2"></i>设置
+                      </Link>
+                      <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                      <button
+                        onClick={logout}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <i className="fa-solid fa-sign-out-alt mr-2"></i>退出登录
+                      </button>
+                    </div>
+                  </div>  
+                ) : (
+                  // 未登录状态 - 显示登录和注册按钮
+                  <div className="hidden md:flex items-center space-x-3">
+                    <Link
+                      to="/login"
+                      className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      登录
+                    </Link>
+                    <Link
+                      to="/register"
+                      className="px-3 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                    >
+                      注册
+                    </Link>
+                  </div>
+                )}
 
               {/* 移动端菜单按钮 */}
               <button

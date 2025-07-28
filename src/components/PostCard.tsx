@@ -67,7 +67,7 @@ export default function PostCard({ post }: PostCardProps) {
         
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <Link to={`/u/${post.author.id}`} className="flex items-center">
+            <Link to={`/u/${post.author.uid}`} className="flex items-center">
               <img
                 className="h-8 w-8 rounded-full object-cover"
                 src={post.author.avatar}
