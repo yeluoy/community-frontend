@@ -11,6 +11,7 @@ interface AuthContextType {
   login: (email, password) => Promise<any>; // 返回Promise以处理UI逻辑
   logout: () => void;
   isLoading: boolean; // 新增一个加载状态，用于处理自动登录
+  updateUser: (newUserData: Partial<User>) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -117,6 +118,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // 可以选择跳转到登录页
     window.location.href = '/login';
   };
+  // 【新增】更新用户信息的函数
+  const updateUser = (newUserData: Partial<User>) => {
+    setUser(prevUser => {
+      if (!prevUser) return null;
+      const updatedUser = { ...prevUser, ...newUserData };
+      // 同时更新 localStorage
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+  };
 
   const contextValue = {
     isAuthenticated,
@@ -124,6 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     login,
     logout,
     isLoading,
+    updateUser, // 【新增】
   };
 
   // 如果正在检查自动登录，可以显示一个全局的加载动画
